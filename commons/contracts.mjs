@@ -1,0 +1,9 @@
+export const contracts = {
+    CLAIM_VERIFIER: 'CLAIM_VERIFIER',
+    DUNGEON: 'DUNGEON'
+}
+
+export const addresses = {
+    CLAIM_VERIFIER: "0x50b13bBD3BA1763A15DE9401E4e91b4846383b2f",
+    DUNGEON: '0x51FF0944cE18d2F82fEA4942CE06b038e8Ac8451'
+}
