@@ -6,7 +6,7 @@ import express from 'express'
 import http from 'http'
 import cors from 'cors'
 import { ethers } from "ethers"
-import generateTypedAuth from '../commons/auth.mjs'
+import generateTypedAuth from './commons/auth.mjs'
 import dotenv from 'dotenv'
 import { iceServers } from "@geckos.io/server"
 
@@ -84,7 +84,6 @@ const io = geckos({
             return { address }
         }
         //verification unsuccessful
-        console.log(address)
         authRequest.delete(address)
         return false
     },
