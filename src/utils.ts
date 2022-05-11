@@ -1,11 +1,12 @@
-import { contracts, addresses } from "../../commons/contracts.mjs"
+import { ethers } from "ethers"
+import { contracts, addresses } from "./commons/contracts.js"
 
-export const signPacket = async (wallet, request, deadline, receiver) => {
+export const signPacket = async (wallet: ethers.Wallet, request: string, deadline: string, receiver: string) => {
     const domain = {
         name: "Web3Game",
         version: "1",
         chainId: 4,
-        verifyingContract: addresses[contracts.CLAIM_VERIFIER]
+        verifyingContract: addresses.CLAIM_VERIFIER
     }
 
     const types = {

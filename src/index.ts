@@ -1,12 +1,12 @@
 import "@geckos.io/phaser-on-nodejs"
 import geckos from '@geckos.io/server'
-import config from './game/config.js'
-import DungeonScene from './game/scenes/dungeonScene.js'
+import config from './config.js'
+import DungeonScene from './scenes/dungeonScene.js'
 import express from 'express'
 import http from 'http'
 import cors from 'cors'
 import { ethers } from "ethers"
-import generateTypedAuth from './commons/auth.mjs'
+import generateTypedAuth from './commons/auth.js'
 import dotenv from 'dotenv'
 import { iceServers } from "@geckos.io/server"
 
@@ -23,7 +23,7 @@ const sessions = new Map()
 
 //generate signer
 const wallet = process.env.NODE_ENV === 'production' ? ethers.Wallet.createRandom() : new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
-let signerAddress
+let signerAddress: string
 wallet.getAddress().then(address => {
     console.log("trusted address: ", address)
     signerAddress = address
@@ -56,9 +56,9 @@ app.post("/challenge", (req, res) => {
 
 const io = geckos({
     //verify address used
-    authorization: (auth, req, res) => {
+    authorization: async (auth, req, res) => {
         //split address and signature
-        const token = auth.split(' ')
+        const token = auth!.split(' ')
         const address = token[0]
         const sig = token[1]
 
@@ -87,7 +87,7 @@ const io = geckos({
         authRequest.delete(address)
         return false
     },
-    cors: { allowAuthorization: true },
+    cors: { allowAuthorization: true, origin: "*" },
     iceServers: process.env.NODE_ENV === 'production' ? iceServers : []
 })
 
@@ -95,15 +95,15 @@ io.addServer(server)
 
 io.onConnection(channel => {
     console.log(channel.userData.address, 'joined')
-
+    
     //create new game instance
     const game = new Phaser.Game(config)
-
+    
     //set scene for game
-    game.scene.add('dungeon', DungeonScene, true, { channel, wallet })
+    const scene = game.scene.add('dungeon', DungeonScene, true, { channel, wallet })
 
     //add game to sessions map
-    sessions.set(channel.userData.address, game)
+    sessions.set(channel.userData.address, scene)
 
     //delete sessions from sessions map after dc
     channel.onDisconnect(() => {
