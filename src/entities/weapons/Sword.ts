@@ -1,20 +1,27 @@
+import { Types } from '@geckos.io/snapshot-interpolation'
 import Phaser from 'phaser'
+import { collisionDetection } from '../../utils'
+import BaseEntity from '../characters/BaseEntity'
+import Enemy from '../interfaces/Enemy'
 import { Weapon } from '../interfaces/Weapon'
 
 interface ISwordParams {
     scene: Phaser.Scene,
-    player: Phaser.Physics.Arcade.Sprite,
+    player: BaseEntity,
 }
 
 export default class Sword extends Phaser.Physics.Arcade.Sprite implements Weapon {
-    player: Phaser.Physics.Arcade.Sprite
-    damage = 20
+    player: BaseEntity
+    damage: number
+    knockback: number
     
     constructor(params: ISwordParams) {
         super(params.scene, params.player.x, params.player.y, '')
 
         //init properties
         this.player = params.player
+        this.damage = 20
+        this.knockback = 2
 
         //add to scene
         this.scene.add.existing(this)
@@ -23,13 +30,19 @@ export default class Sword extends Phaser.Physics.Arcade.Sprite implements Weapo
         this.setSize(20, 20)
     }
 
-    attack(enemies: Phaser.Physics.Arcade.Sprite[], angle: number) {
-        const newPos = Phaser.Math.RotateTo({x: this.player.x, y: this.player.y + 6}, this.player.x, this.player.y + 6, angle, 15)
+    attack(snapshot: Types.Snapshot, enemies: Map<string, Enemy>, angle: number, x: number, y: number) {
+        const newPos = Phaser.Math.RotateTo({x, y: y + 6}, x, y + 6, angle, 15)
         this.setPosition(newPos.x, newPos.y)
         const isLeftHalf = angle < -90 || angle > 90
         this.setAngle(isLeftHalf ? angle + 135 : angle + 45)
-        this.scene.physics.overlap(enemies, this, (enemy: any) => {
-           enemy.hit(this.damage, 2, this.player)
+        snapshot.state.enemies.forEach((enemy: any) => {
+            const enemyObject = enemies.get(enemy.id)
+            if (!enemyObject) return
+            const hit = collisionDetection(
+                { x: enemy.x, y: enemy.y, width: enemyObject.width, height: enemyObject.height},
+                { x, y, width: this.player.width, height: this.player.height }
+            )
+            if (hit) enemyObject.hit(this.player, this.damage, this.knockback)
         })
     }
 }

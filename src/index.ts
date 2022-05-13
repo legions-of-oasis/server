@@ -1,5 +1,5 @@
 import "@geckos.io/phaser-on-nodejs"
-import geckos from '@geckos.io/server'
+import geckos, { ServerChannel } from '@geckos.io/server'
 import config from './config.js'
 import DungeonScene from './scenes/dungeonScene.js'
 import express from 'express'
@@ -56,7 +56,7 @@ app.post("/challenge", (req, res) => {
 
 const io = geckos({
     //verify address used
-    authorization: async (auth, req, res) => {
+    authorization: async (auth: string, req: any, res: any) => {
         //split address and signature
         const token = auth!.split(' ')
         const address = token[0]
@@ -93,7 +93,7 @@ const io = geckos({
 
 io.addServer(server)
 
-io.onConnection(channel => {
+io.onConnection((channel: ServerChannel) => {
     console.log(channel.userData.address, 'joined')
     
     //create new game instance

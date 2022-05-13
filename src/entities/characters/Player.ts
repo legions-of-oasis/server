@@ -1,71 +1,161 @@
-import { Hittable } from '../interfaces/Hittable';
+import { states } from '../../commons/states';
 import { Weapon } from '../interfaces/Weapon';
 import BaseEntity, { IBaseEntityParams } from './BaseEntity.js';
+import { Types } from '@geckos.io/snapshot-interpolation';
+import Enemy from '../interfaces/Enemy';
+import { ServerChannel } from '@geckos.io/server';
 
-interface IPlayerParams extends IBaseEntityParams {
-    equippedWeapon?: Weapon
-}
-
-export default class Player extends BaseEntity implements Hittable {
-    equippedWeapon?: Weapon
+export default class Player extends BaseEntity {
+    dashDuration: number
+    dashCooldown: 200
+    lastDash = 0
+    hitCooldown: number
     lastHit = 0
-    hitCooldown = 1000
-    knockbackCooldown = 200
-    
-    constructor(params: IPlayerParams) {
+    staggerDuration: number
+    hitTintDuration: number
+    channel: ServerChannel
+    equippedWeapon?: Weapon
+    aimAngle?: number
+
+    constructor(params: IBaseEntityParams, channel: ServerChannel, equippedWeapon?: Weapon) {
         super(params)
 
-        this.equippedWeapon = params.equippedWeapon
-        this.setSize(10, 16)
+        this.setSize(10,16)
         this.setDrag(10)
+        this.setName(params.id)
+
+        this.dashDuration = 150
+        this.dashCooldown = 200
+        this.hitCooldown = 1000
+        this.staggerDuration = 200
+        this.hitTintDuration = 50
+        this.channel = channel
+        this.equippedWeapon = equippedWeapon
     }
 
-    update(movement: boolean[]): void {
-        //update equipped weapon
-        if (this.equippedWeapon) this.equippedWeapon.update()
+    update(movement?: (number|boolean)[]) {
+        this.aimAngle = movement![4] as number
+        if (!this.isStaggered() && !this.isDashing()) this.moveWithInput(movement!.slice(0, 4) as boolean[])
+        // this.updateState()
+        super.update()
+    }
 
-        //get current time
+    // updateState() {
+    //     const time = this.scene.time.now
+
+    //     if (this.state === states.HIT) {
+    //         if (time > this.hitTintDuration && time < this.hitCooldown) this.setState(states.HITCOOLDOWN)
+    //     }
+    // }
+
+    moveWithInput(movement: boolean[]) {
+        const velocity = this.body.velocity
+        const [up, down, left, right] = movement
         const time = this.scene.time.now
+        let isDashing = time < this.lastDash + this.dashDuration
 
-        // //small period where sprite flashes white after being hit
-        // const inTintPeriod = time < this.lastHit + 50
-
-        //is knockbacked (staggered)
-        const isKnockbacked = time < this.lastHit + this.knockbackCooldown
-
-        //if not staggered, update movement with input
-        if (!isKnockbacked) super.update(movement)
-
-        // //if not in tint period and is tinted and is not dashing, clear all tint
-        // if (!inTintPeriod && this.isTinted && !this.isDashing()) this.clearTint()
-
-        // //if on hit cooldown and not in tint period, alternate flash the player to show invulnerability
-        // if (this.isOnHitCooldown() && !inTintPeriod) {
-        //     this.setAlpha(time % 200 < 100 ? 0.1 : 1)
-        // } else {
-        //     this.setAlpha(1)
-        // }
-    }
-
-    setEquippedWeapon(weapon: Weapon) {
-        this.equippedWeapon = weapon
-    }
-
-    hit(damage: number, knockback: number, hitter: Phaser.GameObjects.Sprite) {
-        //get current time
-        const time = this.scene.time.now
+        if (isDashing) return
         
-        //if on hit cooldown do nothing and return false
-        if (this.isOnHitCooldown()) return false
+        if (up || down || left || right) {
+            //up and down
+            if (up && down) {
+                this.setVelocityY(0)
+            } else if (up) {
+                this.setVelocityY(-this.movementSpeed)
+            } else if (down) {
+                this.setVelocityY(this.movementSpeed)
+            } else {
+                this.setVelocityY(0)
+            }
 
-        //if is dashing do nothing and return false
-        if (this.isDashing()) return false
+            //left and right
+            if (left && right) {
+                this.setVelocityX(0)
+            } else if (left) {
+                this.setVelocityX(-this.movementSpeed)
+                // this.lastDirectionIsLeft = true
+            } else if (right) {
+                this.setVelocityX(this.movementSpeed)
+                // this.lastDirectionIsLeft = false
+            } else {
+                this.setVelocityX(0)
+            }
 
-        // //set white tint
-        // this.setTintFill(0xDDDDDD)
+            //diagonals
+            if (velocity?.x != 0 && velocity?.y != 0) {
+                const diagonalVelocity = velocity.normalize().scale(this.movementSpeed)
+                this.setVelocity(diagonalVelocity.x, diagonalVelocity.y)
+            }
+
+            if (this.state !== states.MOVING) {
+                this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.MOVING})
+                this.setState(states.MOVING)
+            }
+        } else {
+            //idle
+            this.setVelocity(0)
+
+            if (this.state !== states.IDLE) {
+                this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.IDLE})
+                this.setState(states.IDLE)
+            }
+        }
+    }
+
+    dash() {
+        //get current time
+        const time = this.scene.time.now
+
+        //check if on cooldown
+        const isOnDashCooldown = time < this.lastDash + this.dashDuration + this.dashCooldown
+        if (isOnDashCooldown || this.body.velocity.length() === 0 || this.isStaggered()) return
+
+        this.lastDash = time
+        
+        const dashSpeed = this.body.velocity.normalize().scale(this.movementSpeed * 6)
+        this.setVelocity(dashSpeed.x, dashSpeed.y)
+
+        if (this.state !== states.DASHING) {
+            this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.DASHING})
+            this.setState(states.DASHING)
+        }
+
+        this.scene.time.delayedCall(this.dashDuration, () => {
+            if (this.state !== states.IDLE) {
+                this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.IDLE})
+                this.setState(states.IDLE)
+            }
+        })
+    }
+
+    hit(hitter: Phaser.Physics.Arcade.Sprite, damage: number, knockback: number) {
+        //if on hit cooldown or dashing return early
+        if (this.isOnHitCooldown() || this.isDashing()) return
+
+        //set white tint
+        if (this.state !== states.HIT) {
+            this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.HIT})
+            this.setState(states.HIT)
+        }
+
+        //set health
+        const newHp = this.getData('hp') - damage
+        this.setData('hp', newHp)
+        this.channel.room.emit('hpUpdate', {id: this.channel.userData.address, hp: newHp})
+
+        //get current time
+        const time = this.scene.time.now
 
         //set last hit time
         this.lastHit = time
+
+        //set hitcooldown state after tint state
+        this.scene.time.delayedCall(this.hitTintDuration, () => {
+            if (this.state !== states.HITCOOLDOWN) {
+                this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.HITCOOLDOWN})
+                this.setState(states.HITCOOLDOWN)
+            }
+        })
 
         //get angle between hitter and player
         const angle = Phaser.Math.Angle.Between(this.x, this.y, hitter.x, hitter.y)
@@ -75,30 +165,22 @@ export default class Player extends BaseEntity implements Hittable {
 
         //set knockback velocity
         this.setVelocity(oppoVelocity.x, oppoVelocity.y)
+    }
+    
+    attack({time, x, y}: { time: number, x: number, y: number }, snapshot: Types.Snapshot, activeEnemies: Map<string, Enemy>) {
+        const isStaggered = time < this.lastHit + this.staggerDuration
+        const isDashing = time < this.lastDash + this.dashDuration
+        if (isStaggered || isDashing || !this.equippedWeapon) return
 
-        //get new health after damage
-        const newHealth = this.getData('hp') - damage
+        if (!this.distanceIsLegit(x, y)) return
 
-        //set new health after damage
-        this.setData('hp', newHealth)
-
-        //return true to indicate hit successful
-        return true
+        if (this.aimAngle) this.equippedWeapon.attack(snapshot, activeEnemies, this.aimAngle, x, y)
     }
 
-    dash() {
-        //get current time
-        const time = this.scene.time.now
-
-        //check if on cooldown
-        const isOnDashCooldown = time < this.lastDash + this.dashDuration + this.dashCooldown
-        if (isOnDashCooldown) return
-        if (this.body.velocity.length() === 0) return
-
-        this.lastDash = time
-        // this.setTintFill(0xDDDDDD)
-        const dashSpeed = this.body.velocity.normalize().scale(this.movementSpeed * 6)
-        this.setVelocity(dashSpeed.x, dashSpeed.y)
+    distanceIsLegit(x: number, y: number): boolean {
+        const distance = Phaser.Math.Distance.Between(x, y, this.x, this.y)
+        if (distance > 50) return false
+        return true
     }
 
     isOnHitCooldown() {
@@ -107,5 +189,9 @@ export default class Player extends BaseEntity implements Hittable {
 
     isDashing() {
         return this.scene.time.now < this.lastDash + this.dashDuration
+    }
+
+    isStaggered() {
+        return this.scene.time.now < this.lastHit + this.staggerDuration
     }
 }
