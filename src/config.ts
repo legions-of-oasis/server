@@ -1,7 +1,8 @@
 import "@geckos.io/phaser-on-nodejs"
 import Phaser from "phaser"
+import DungeonScene from "./scenes/dungeonScene.js"
 
-export default {
+const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.HEADLESS,
     width: 480,
     height: 320,
@@ -16,3 +17,5 @@ export default {
         }
     }
 }
+
+export default config

@@ -1,3 +1,5 @@
+import { ServerChannel } from "@geckos.io/server";
+import { states } from "../../commons/states.js";
 import Enemy from "../interfaces/Enemy.js";
 import BaseEntity, { IBaseEntityParams } from "./BaseEntity.js";
 import Player from "./Player.js";
@@ -7,11 +9,13 @@ export default class Chort extends BaseEntity implements Enemy {
     collider?: Phaser.Physics.Arcade.Collider
     aggro?: Player
     lastHit = 0
-    hitCooldown = 300
-    knockbackCooldown = 1000
-    timeOfDeath = 0
+    hitCooldown: number
+    staggerDuration: number
+    aggroDistance: number
+    room: ServerChannel["room"]
+    aggroFinder: Phaser.Time.TimerEvent
 
-    constructor(params: IBaseEntityParams, targets?: Map<string, Player>) {
+    constructor(params: IBaseEntityParams, room: ServerChannel["room"], targets?: Map<string, Player>) {
         super(params)
 
         if (targets) this.setTarget(targets)
@@ -20,76 +24,123 @@ export default class Chort extends BaseEntity implements Enemy {
         this.setSize(10, 16)
         this.setName(params.id)
 
+        this.hitCooldown = 300
+        this.staggerDuration = 1000
+        this.aggroDistance = 100
+        this.room = room
+
         this.scene.add.existing(this)
         this.scene.physics.world.enable(this)
 
-        this.scene.time.addEvent({
+        this.aggroFinder = this.scene.time.addEvent({
             loop: true,
             delay: 2000,
-            callback: () => {
-                
-            }
+            callback: () => this.checkAggro()
         })
     }
 
     update() {
-        // if (this.alive) super.update()
-        if (!this.targets) {
-            return
-        }
-        if (!this.aggro) {
-            // this.chasing = Phaser.Math.Distance.Between(this.x, this.y, this.target.x, this.target.y) < 100
-        } else {
-            const time = this.scene.time.now
-            const isKnockbacked = time < this.lastHit + this.knockbackCooldown
-            const isDying = time < this.timeOfDeath + 1000
+        if (!this.aggro) return
 
-            //disable body after dead
-            if (!isDying && !this.alive) {
-                this.disableBody(true, true)
-                return
-            }
+        // const time = this.scene.time.now
+        // const isDying = time < this.timeOfDeath + 1000
 
-            //move if not knockbacked
-            // if (!isKnockbacked) this.scene.physics.moveToObject(this, this.target, this.movementSpeed)
+        // //disable body after dead
+        // if (!isDying && !this.alive) {
+        //     this.disableBody(true, true)
+        //     return
+        // }
+
+        // move if not staggered
+        if (!this.isStaggered() && this.alive) {
+            this.scene.physics.moveToObject(this, this.aggro, this.movementSpeed)
+            this.updateState(states.MOVING)
         }
+    
     }
 
     setTarget(targets: Map<string, Player>) {
-        this.collider?.destroy()
         this.targets = targets
-        this.collider = this.scene.physics.add.overlap(this, Array.from(this.targets.values()), (target) => this.overlapHandler(target))
+        this.collider = this.scene.physics.add.overlap(this, Array.from(this.targets.values()), (target) => this.overlapHandler(target as Player))
     }
 
     overlapHandler(target: Player) {
-        if (this.alive) target.hit(10, 0.5, this)
+        if (this.alive) target.hit(this, 10, 0.5)
     }
 
     hit(hitter: Phaser.GameObjects.Sprite, damage: number, knockback: number) {
-        const time = this.scene.time.now
+        //if on hit cooldown or dead return early
         if (this.isOnHitCooldown() || !this.alive) return
 
-        const newHealth = this.getData('hp') - damage
-        this.setData('hp', newHealth)
+        //set state
+        this.updateState(states.HIT)
+
+        //set new health
+        const newHp = this.getData('hp') - damage
+        this.setData('hp', newHp)
+        this.room.emit('hpUpdateEnemy', {id: this.name, hp: newHp})
+
+        //get current time
+        const time = this.scene.time.now
+
+        //set last hit time
         this.lastHit = time
 
+        //set hitcooldown state after tint state
+        this.scene.time.delayedCall(this.hitTintDuration, () => this.updateState(states.HITCOOLDOWN))
+
+        //get angle between hitter and player
         const angle = Phaser.Math.Angle.Between(this.x, this.y, hitter.x, hitter.y)
+
+        //get knockback velocity
         const oppoVelocity = this.scene.physics.velocityFromAngle(Phaser.Math.RadToDeg(angle) + 180, this.movementSpeed * knockback)
+
+        //set knockback velocity
         this.setVelocity(oppoVelocity.x, oppoVelocity.y)
 
-        if (newHealth < 0) {
+        //set new aggro
+        this.aggro = hitter as Player
+
+        //die
+        if (newHp < 0) {
             this.die()
         }
-
-        return
     }
 
     isOnHitCooldown(): boolean {
         return this.scene.time.now < this.lastHit + this.hitCooldown
     }
 
+    isStaggered() {
+        return this.scene.time.now < this.lastHit + this.staggerDuration
+    }
+
     die() {
-        this.timeOfDeath = this.scene.time.now
         this.alive = false
+        this.updateState(states.DYING)
+        this.scene.time.delayedCall(1000, () => {
+            this.updateState(states.DEAD)
+            this.disableBody(true, true)
+        })
+    }
+
+    checkAggro() {
+        if (!this.targets) return
+
+        for (const target of this.targets.values()) {
+            const distance = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y)
+            if (distance > this.aggroDistance) continue
+
+            this.aggro = target
+            this.scene.time.removeEvent(this.aggroFinder)
+            return
+        }
+    }
+
+    updateState(state: states) {
+        if (this.state !== state) {
+            this.room.emit('stateUpdate', {id: this.name, state: state})
+            this.setState(state)
+        }
     }
 }

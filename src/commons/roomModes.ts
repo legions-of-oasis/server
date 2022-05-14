@@ -1,0 +1,7 @@
+export enum roomModes {
+    SINGLEPLAYER,
+    PUBLIC_JOIN,
+    PUBLIC_CREATE,
+    PRIVATE_JOIN,
+    PRIVATE_CREATE
+}

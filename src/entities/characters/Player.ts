@@ -1,9 +1,10 @@
-import { states } from '../../commons/states';
-import { Weapon } from '../interfaces/Weapon';
+import { states } from '../../commons/states.js';
+import { Weapon } from '../interfaces/Weapon.js';
 import BaseEntity, { IBaseEntityParams } from './BaseEntity.js';
 import { Types } from '@geckos.io/snapshot-interpolation';
-import Enemy from '../interfaces/Enemy';
+import Enemy from '../interfaces/Enemy.js';
 import { ServerChannel } from '@geckos.io/server';
+import { InterpolatedSnapshot } from '@geckos.io/snapshot-interpolation/lib/types';
 
 export default class Player extends BaseEntity {
     dashDuration: number
@@ -12,7 +13,6 @@ export default class Player extends BaseEntity {
     hitCooldown: number
     lastHit = 0
     staggerDuration: number
-    hitTintDuration: number
     channel: ServerChannel
     equippedWeapon?: Weapon
     aimAngle?: number
@@ -28,7 +28,6 @@ export default class Player extends BaseEntity {
         this.dashCooldown = 200
         this.hitCooldown = 1000
         this.staggerDuration = 200
-        this.hitTintDuration = 50
         this.channel = channel
         this.equippedWeapon = equippedWeapon
     }
@@ -87,18 +86,12 @@ export default class Player extends BaseEntity {
                 this.setVelocity(diagonalVelocity.x, diagonalVelocity.y)
             }
 
-            if (this.state !== states.MOVING) {
-                this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.MOVING})
-                this.setState(states.MOVING)
-            }
+            this.updateState(states.IDLE)
         } else {
             //idle
             this.setVelocity(0)
 
-            if (this.state !== states.IDLE) {
-                this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.IDLE})
-                this.setState(states.IDLE)
-            }
+            this.updateState(states.IDLE)
         }
     }
 
@@ -115,33 +108,22 @@ export default class Player extends BaseEntity {
         const dashSpeed = this.body.velocity.normalize().scale(this.movementSpeed * 6)
         this.setVelocity(dashSpeed.x, dashSpeed.y)
 
-        if (this.state !== states.DASHING) {
-            this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.DASHING})
-            this.setState(states.DASHING)
-        }
+        this.updateState(states.DASHING)
 
-        this.scene.time.delayedCall(this.dashDuration, () => {
-            if (this.state !== states.IDLE) {
-                this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.IDLE})
-                this.setState(states.IDLE)
-            }
-        })
+        this.scene.time.delayedCall(this.dashDuration, () => this.updateState(states.IDLE))
     }
 
     hit(hitter: Phaser.Physics.Arcade.Sprite, damage: number, knockback: number) {
         //if on hit cooldown or dashing return early
         if (this.isOnHitCooldown() || this.isDashing()) return
 
-        //set white tint
-        if (this.state !== states.HIT) {
-            this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.HIT})
-            this.setState(states.HIT)
-        }
+        //set state
+        this.updateState(states.HIT)
 
         //set health
         const newHp = this.getData('hp') - damage
         this.setData('hp', newHp)
-        this.channel.room.emit('hpUpdate', {id: this.channel.userData.address, hp: newHp})
+        this.channel.room.emit('hpUpdatePlayer', {id: this.channel.userData.address, hp: newHp})
 
         //get current time
         const time = this.scene.time.now
@@ -150,12 +132,7 @@ export default class Player extends BaseEntity {
         this.lastHit = time
 
         //set hitcooldown state after tint state
-        this.scene.time.delayedCall(this.hitTintDuration, () => {
-            if (this.state !== states.HITCOOLDOWN) {
-                this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: states.HITCOOLDOWN})
-                this.setState(states.HITCOOLDOWN)
-            }
-        })
+        this.scene.time.delayedCall(this.hitTintDuration, () => this.updateState(states.HITCOOLDOWN))
 
         //get angle between hitter and player
         const angle = Phaser.Math.Angle.Between(this.x, this.y, hitter.x, hitter.y)
@@ -167,7 +144,7 @@ export default class Player extends BaseEntity {
         this.setVelocity(oppoVelocity.x, oppoVelocity.y)
     }
     
-    attack({time, x, y}: { time: number, x: number, y: number }, snapshot: Types.Snapshot, activeEnemies: Map<string, Enemy>) {
+    attack({time, x, y}: { time: number, x: number, y: number }, snapshot: InterpolatedSnapshot, activeEnemies: Map<string, Enemy>) {
         const isStaggered = time < this.lastHit + this.staggerDuration
         const isDashing = time < this.lastDash + this.dashDuration
         if (isStaggered || isDashing || !this.equippedWeapon) return
@@ -181,6 +158,13 @@ export default class Player extends BaseEntity {
         const distance = Phaser.Math.Distance.Between(x, y, this.x, this.y)
         if (distance > 50) return false
         return true
+    }
+
+    updateState(state: states) {
+        if (this.state !== state) {
+            this.channel.room.emit('stateUpdate', {id: this.channel.userData.address, state: state})
+            this.setState(state)
+        }
     }
 
     isOnHitCooldown() {

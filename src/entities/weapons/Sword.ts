@@ -1,4 +1,5 @@
 import { Types } from '@geckos.io/snapshot-interpolation'
+import { InterpolatedSnapshot } from '@geckos.io/snapshot-interpolation/lib/types'
 import Phaser from 'phaser'
 import { collisionDetection } from '../../utils'
 import BaseEntity from '../characters/BaseEntity'
@@ -30,12 +31,12 @@ export default class Sword extends Phaser.Physics.Arcade.Sprite implements Weapo
         this.setSize(20, 20)
     }
 
-    attack(snapshot: Types.Snapshot, enemies: Map<string, Enemy>, angle: number, x: number, y: number) {
+    attack(snapshot: InterpolatedSnapshot, enemies: Map<string, Enemy>, angle: number, x: number, y: number) {
         const newPos = Phaser.Math.RotateTo({x, y: y + 6}, x, y + 6, angle, 15)
         this.setPosition(newPos.x, newPos.y)
         const isLeftHalf = angle < -90 || angle > 90
         this.setAngle(isLeftHalf ? angle + 135 : angle + 45)
-        snapshot.state.enemies.forEach((enemy: any) => {
+        snapshot.state.forEach((enemy: any) => {
             const enemyObject = enemies.get(enemy.id)
             if (!enemyObject) return
             const hit = collisionDetection(
