@@ -15,7 +15,11 @@ dotenv.config()
 const app = express()
 const server = http.createServer(app)
 
-app.use(cors())
+app.use(cors({
+    origin: '*',
+    credentials: true,
+    optionsSuccessStatus: 200
+}))
 
 const authRequest = new Map<string, {challenge: string, time: number}>()
 
