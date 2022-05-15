@@ -174,6 +174,6 @@ io.onConnection(channel => {
     })
 })
 
-server.listen(9208, () => {
+app.listen(9208, () => {
     console.log("listening on port 9208")
 })
