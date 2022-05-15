@@ -15,11 +15,8 @@ dotenv.config()
 const app = express()
 const server = http.createServer(app)
 
-app.use(cors({
-    origin: '*',
-    credentials: true,
-    optionsSuccessStatus: 200
-}))
+app.use(cors())
+app.use(express.text())
 
 const authRequest = new Map<string, {challenge: string, time: number}>()
 
@@ -38,7 +35,7 @@ app.get("/signer", (req, res) => {
 })
 
 //request authentication challenge
-app.post("/challenge", express.text(), (req, res) => {
+app.post("/challenge", (req, res) => {
     //get address
     const address = req.body
 
@@ -59,7 +56,7 @@ app.post("/challenge", express.text(), (req, res) => {
 const secret = process.env.TOKEN_SECRET ?? '09f26e402586e2faa8da4c98a35f1b20d6b033c6097befa8be3486a829587fe2f90a832bd3ff9d42710a4da095a2ce285b009f0c3730cd9b8e1af3eb84df6611' //test
 
 //generate jwt
-app.post("/generateToken", express.text(), (req, res) => {
+app.post("/generateToken", (req, res) => {
     const auth = req.body
 
     if (!verifyChallenge(auth)) {
