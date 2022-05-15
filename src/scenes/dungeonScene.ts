@@ -8,7 +8,7 @@ import Enemy from '../entities/interfaces/Enemy.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import Sword from '../entities/weapons/Sword.js';
-import '../assets/tilemaps/dungeon-tilemap.json';
+import '../assets/tilemaps/dungeon-tilemap.json' assert { type: "json" };
 
 export default class DungeonScene extends Phaser.Scene {
     playerChannels!: ServerChannel[]
@@ -31,9 +31,10 @@ export default class DungeonScene extends Phaser.Scene {
     }
 
     preload() {
-        const __filename = fileURLToPath(import.meta.url)
-        const __dirname = path.dirname(__filename)
-        this.load.tilemapTiledJSON('dungeon-tilemap', path.join(__dirname, '../assets/tilemaps/dungeon-tilemap.json'))
+        // const __filename = fileURLToPath(import.meta.url)
+        // const __dirname = path.dirname(__filename)
+        // this.load.tilemapTiledJSON('dungeon-tilemap', path.join(__dirname, '../assets/tilemaps/dungeon-tilemap.json'))
+        this.load.tilemapTiledJSON('dungeon-tilemap', '../assets/tilemaps/dungeon-tilemap.json')
     }
 
     create() {
