@@ -1,10 +1,10 @@
 import { Types } from '@geckos.io/snapshot-interpolation'
 import { InterpolatedSnapshot } from '@geckos.io/snapshot-interpolation/lib/types'
 import Phaser from 'phaser'
-import { collisionDetection } from '../../utils'
-import BaseEntity from '../characters/BaseEntity'
-import Enemy from '../interfaces/Enemy'
-import { Weapon } from '../interfaces/Weapon'
+import { collisionDetection } from '../../utils.js'
+import BaseEntity from '../characters/BaseEntity.js'
+import Enemy from '../interfaces/Enemy.js'
+import { Weapon } from '../interfaces/Weapon.js'
 
 interface ISwordParams {
     scene: Phaser.Scene,

@@ -10,7 +10,7 @@ export interface Room {
     roomId: string
     playerCount: number
     type: string,
-    game: Phaser.Game
+    game?: Phaser.Game
     inSession: boolean
 }
 
@@ -88,7 +88,6 @@ export default class RoomManager {
     }
 
     addSinglePlayer(channel: ServerChannel) {
-        const game = new Phaser.Game(config)
 
         const room: Room = {
             channels: [channel],
@@ -96,12 +95,15 @@ export default class RoomManager {
             playerCount: 1,
             type: 'singleplayer',
             inSession: true,
-            game
         }
         this.singlePlayerRooms.set(room.roomId, room)
 
         channel.on('start', () => {
+            const game = new Phaser.Game(config)
+            console.log('starting', room.roomId)
             game.scene.add(room.roomId, DungeonScene, true, { playerChannels: room.channels, wallet: this.wallet })
+            room.inSession = true
+            room.game = game
         })
 
         return channel.userData.address
@@ -133,7 +135,6 @@ export default class RoomManager {
     }
 
     createPublic(channel: ServerChannel) {
-        const game = new Phaser.Game(config)
         
         let _room
         let roomId
@@ -147,13 +148,15 @@ export default class RoomManager {
             roomId,
             playerCount: 1,
             type: 'public',
-            inSession: false,
-            game
+            inSession: false
         }
 
         channel.on('start', () => {
+            const game = new Phaser.Game(config)
+            console.log('starting', room.roomId)
             game.scene.add(room.roomId, DungeonScene, true, { playerChannels: room.channels, wallet: this.wallet })
             room.inSession = true
+            room.game = game
         })
 
         channel.join(roomId)
@@ -188,7 +191,6 @@ export default class RoomManager {
     }
 
     createPrivate(channel: ServerChannel) {
-        const game = new Phaser.Game(config)
         
         let _room
         let roomId
@@ -203,12 +205,14 @@ export default class RoomManager {
             playerCount: 1,
             type: 'private',
             inSession: false,
-            game
         }
 
         channel.on('start', () => {
+            const game = new Phaser.Game(config)
+            console.log('starting', room.roomId)
             game.scene.add(room.roomId, DungeonScene, true, { playerChannels: room.channels, wallet: this.wallet })
             room.inSession = true
+            room.game = game
         })
 
         channel.join(roomId)

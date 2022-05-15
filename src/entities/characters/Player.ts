@@ -86,12 +86,12 @@ export default class Player extends BaseEntity {
                 this.setVelocity(diagonalVelocity.x, diagonalVelocity.y)
             }
 
-            this.updateState(states.IDLE)
+            if (!this.isOnHitCooldown()) this.updateState(states.IDLE)
         } else {
             //idle
             this.setVelocity(0)
 
-            this.updateState(states.IDLE)
+            if (!this.isOnHitCooldown()) this.updateState(states.IDLE)
         }
     }
 
@@ -144,14 +144,14 @@ export default class Player extends BaseEntity {
         this.setVelocity(oppoVelocity.x, oppoVelocity.y)
     }
     
-    attack({time, x, y}: { time: number, x: number, y: number }, snapshot: InterpolatedSnapshot, activeEnemies: Map<string, Enemy>) {
+    attack({time, x, y, angle}: { time: number, x: number, y: number, angle: number }, snapshot: InterpolatedSnapshot, activeEnemies: Map<string, Enemy>) {
         const isStaggered = time < this.lastHit + this.staggerDuration
         const isDashing = time < this.lastDash + this.dashDuration
         if (isStaggered || isDashing || !this.equippedWeapon) return
 
         if (!this.distanceIsLegit(x, y)) return
 
-        if (this.aimAngle) this.equippedWeapon.attack(snapshot, activeEnemies, this.aimAngle, x, y)
+        this.equippedWeapon.attack(snapshot, activeEnemies, angle, x, y)
     }
 
     distanceIsLegit(x: number, y: number): boolean {

@@ -7,6 +7,7 @@ import Player from '../entities/characters/Player.js';
 import Enemy from '../entities/interfaces/Enemy.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import Sword from '../entities/weapons/Sword.js';
 
 export default class DungeonScene extends Phaser.Scene {
     playerChannels!: ServerChannel[]
@@ -63,6 +64,10 @@ export default class DungeonScene extends Phaser.Scene {
                 id: channel.userData.address,
                 speed: 80
             }, channel)
+            player.equippedWeapon = new Sword({
+                player,
+                scene: this
+            })
             this.players.set(channel.userData.address, player)
             this.activePlayers++
         })
@@ -114,8 +119,8 @@ export default class DungeonScene extends Phaser.Scene {
             const player = this.players.get(channel.userData.address)
 
             //listen for movement update
-            channel.on('move', (movement) => {
-                player?.update(movement as boolean[])
+            channel.on('input', (input) => {
+                player?.update(input as boolean[])
             })
 
             //listen for attack
@@ -157,6 +162,10 @@ export default class DungeonScene extends Phaser.Scene {
 
     update(): void {
         this.tick++
+
+        for (const enemy of this.activeEnemies.values()) {
+            enemy.update()
+        }
 
         //only send snapshot at half the server fps
         if (this.tick % 2 !== 0) return

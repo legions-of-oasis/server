@@ -26,7 +26,7 @@ export default class Chort extends BaseEntity implements Enemy {
 
         this.hitCooldown = 300
         this.staggerDuration = 1000
-        this.aggroDistance = 100
+        this.aggroDistance = 150
         this.room = room
 
         this.scene.add.existing(this)
@@ -61,7 +61,7 @@ export default class Chort extends BaseEntity implements Enemy {
 
     setTarget(targets: Map<string, Player>) {
         this.targets = targets
-        this.collider = this.scene.physics.add.overlap(this, Array.from(this.targets.values()), (target) => this.overlapHandler(target as Player))
+        this.collider = this.scene.physics.add.overlap(this, Array.from(this.targets.values()), (_, target) => this.overlapHandler(target as Player))
     }
 
     overlapHandler(target: Player) {
@@ -86,9 +86,6 @@ export default class Chort extends BaseEntity implements Enemy {
         //set last hit time
         this.lastHit = time
 
-        //set hitcooldown state after tint state
-        this.scene.time.delayedCall(this.hitTintDuration, () => this.updateState(states.HITCOOLDOWN))
-
         //get angle between hitter and player
         const angle = Phaser.Math.Angle.Between(this.x, this.y, hitter.x, hitter.y)
 
@@ -104,7 +101,12 @@ export default class Chort extends BaseEntity implements Enemy {
         //die
         if (newHp < 0) {
             this.die()
+            return
         }
+
+        //set hitcooldown state after tint state
+        this.scene.time.delayedCall(this.hitTintDuration, () => this.updateState(states.HITCOOLDOWN))
+        this.scene.time.delayedCall(this.hitCooldown, () => this.updateState(states.MOVING))
     }
 
     isOnHitCooldown(): boolean {
