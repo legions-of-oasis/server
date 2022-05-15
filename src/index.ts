@@ -4,13 +4,11 @@ import http, { IncomingMessage, OutgoingMessage } from 'http'
 import cors from 'cors'
 import { ethers } from "ethers"
 import dotenv from 'dotenv'
-import RoomManager, { Room } from "./RoomManager.js"
+import RoomManager from "./RoomManager.js"
 import jwt from 'jsonwebtoken'
 import generateTypedAuth from "./commons/auth.js"
 import { geckos, iceServers } from "@geckos.io/server"
 import { roomModes } from "./commons/roomModes.js"
-import config from './config.js'
-import DungeonScene from "./scenes/dungeonScene.js"
 
 dotenv.config()
 
@@ -86,7 +84,8 @@ function verifyChallenge(auth: string): boolean {
         if (Date.now() > secret.time + 60000) return false
 
         //get typed data
-        const { domain, types, value } = generateTypedAuth(secret.challenge)
+        const chainId = process.env.NODE_ENV === 'production' ? 4 : 31337
+        const { domain, types, value } = generateTypedAuth(secret.challenge, chainId)
 
         //get recovered address from typed data and signature
         const recoveredAddress = ethers.utils.verifyTypedData(domain, types, value, sig)
