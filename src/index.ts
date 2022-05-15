@@ -71,17 +71,26 @@ function verifyChallenge(auth: string): boolean {
         //split address and signature
         const token = auth!.split(' ')
 
-        if (token.length < 2) return false
+        if (token.length < 2) {
+            console.log("invalid token")
+            return false
+        }
 
         const address = token[0]
         const sig = token[1]
 
         //get secret
         const secret = authRequest.get(address)
-        if (!secret) return false
+        if (!secret) {
+            console.log("invalid nonce")
+            return false
+        }
 
         //expire in 60 secs
-        if (Date.now() > secret.time + 60000) return false
+        if (Date.now() > secret.time + 60000) {
+            console.log("nonce expired")
+            return false
+        }
 
         //get typed data
         const chainId = process.env.NODE_ENV === 'production' ? 4 : 31337
@@ -97,6 +106,8 @@ function verifyChallenge(auth: string): boolean {
         }
         //verification unsuccessful
         authRequest.delete(address)
+        console.log("invalid signature")
+        console.log(chainId)
         return false
 }
 
