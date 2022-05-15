@@ -8,6 +8,7 @@ import Enemy from '../entities/interfaces/Enemy.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import Sword from '../entities/weapons/Sword.js';
+import '../assets/tilemaps/dungeon-tilemap.json';
 
 export default class DungeonScene extends Phaser.Scene {
     playerChannels!: ServerChannel[]
