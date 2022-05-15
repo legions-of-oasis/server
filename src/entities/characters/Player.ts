@@ -1,7 +1,6 @@
 import { states } from '../../commons/states.js';
 import { Weapon } from '../interfaces/Weapon.js';
 import BaseEntity, { IBaseEntityParams } from './BaseEntity.js';
-import { Types } from '@geckos.io/snapshot-interpolation';
 import Enemy from '../interfaces/Enemy.js';
 import { ServerChannel } from '@geckos.io/server';
 import { InterpolatedSnapshot } from '@geckos.io/snapshot-interpolation/lib/types';
@@ -20,7 +19,7 @@ export default class Player extends BaseEntity {
     constructor(params: IBaseEntityParams, channel: ServerChannel, equippedWeapon?: Weapon) {
         super(params)
 
-        this.setSize(10,16)
+        this.body.setSize(10, 16)
         this.setDrag(10)
         this.setName(params.id)
 
