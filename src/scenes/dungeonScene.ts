@@ -19,22 +19,15 @@ export default class DungeonScene extends Phaser.Scene {
     activePlayers = 0
     tick = 0
 
-    // constructor(config: string | Phaser.Types.Scenes.SettingsConfig) {
-    //     super({
-    //         active: true
-    //     })
-    // }
-
     init({ playerChannels, wallet }: { playerChannels: ServerChannel[], wallet: ethers.Wallet }) {
         this.playerChannels = playerChannels
         this.wallet = wallet
     }
 
     preload() {
-        // const __filename = fileURLToPath(import.meta.url)
-        // const __dirname = path.dirname(__filename)
-        // this.load.tilemapTiledJSON('dungeon-tilemap', path.join(__dirname, '../assets/tilemaps/dungeon-tilemap.json'))
-        this.load.tilemapTiledJSON('dungeon-tilemap', '../assets/tilemaps/dungeon-tilemap.json')
+        const __filename = fileURLToPath(import.meta.url)
+        const __dirname = path.dirname(__filename)
+        this.load.tilemapTiledJSON('dungeon-tilemap', path.join(__dirname, '../assets/tilemaps/dungeon-tilemap.json'))
     }
 
     create() {
