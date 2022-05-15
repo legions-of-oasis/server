@@ -59,10 +59,9 @@ export default class RoomManager {
     }
 
     remove(channel: ServerChannel, roomId: string) {
+        this.connectedPlayers.delete(channel.userData.address)
         const room = this.getRoom(roomId)
         if (!room) return
-
-        this.connectedPlayers.delete(channel.userData.address)
 
         room.playerCount--
 
